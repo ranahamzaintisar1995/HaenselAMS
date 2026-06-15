@@ -1,0 +1,32 @@
+# OS
+.DS_Store
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Local database and generated artifacts
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+
+# Keep challenge input archive if desired (uncomment to ignore)
+challenge.db

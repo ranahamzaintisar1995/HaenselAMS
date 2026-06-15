@@ -1,0 +1,71 @@
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: true
+        default: "mock"
+        type: choice
+        options:
+          - mock
+          - live
+      max_journeys_per_run:
+        description: "0 = all journeys"
+        required: true
+        default: "100"
+        type: string
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build runtime .env
+        shell: bash
+        run: |
+          cat > .env << EOF
+          IHC_API_URL=https://api.ihc-attribution.com/v1/compute_ihc
+          IHC_API_KEY=${{ secrets.IHC_API_KEY }}
+          IHC_CONV_TYPE_ID=${{ secrets.IHC_CONV_TYPE_ID }}
+          IHC_MAX_JOURNEYS_PER_RUN=${{ github.event.inputs.max_journeys_per_run }}
+          IHC_CHUNK_SIZE=100
+          IHC_MAX_SESSIONS_PER_REQUEST=200
+          IHC_REQUEST_TIMEOUT_SECONDS=30
+          EOF
+
+      - name: Validate live secrets
+        if: ${{ github.event.inputs.mode == 'live' }}
+        shell: bash
+        run: |
+          [[ -n "${{ secrets.IHC_API_KEY }}" ]] || (echo "Missing secret IHC_API_KEY" && exit 1)
+          [[ -n "${{ secrets.IHC_CONV_TYPE_ID }}" ]] || (echo "Missing secret IHC_CONV_TYPE_ID" && exit 1)
+
+      - name: Run pipeline (mock)
+        if: ${{ github.event.inputs.mode == 'mock' }}
+        run: python main.py --mock-api
+
+      - name: Run pipeline (live)
+        if: ${{ github.event.inputs.mode == 'live' }}
+        run: python main.py
+
+      - name: Upload reporting artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-reporting
+          path: channel_reporting.csv
+          if-no-files-found: error
